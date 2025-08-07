@@ -1,3 +1,18 @@
+# ko tmp files
+*.ko
+*.mod
+*.mod.c
+*.cmd
+*.order
+*.symvers
+
+# vscode tmp files
+.vscode
+
+# compile command files
+compile_commands_knl.json
+compile_commands_usr.json
+
 # Prerequisites
 *.d
 
