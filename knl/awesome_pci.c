@@ -31,6 +31,11 @@ static void awesome_pci_destroy_nvme_device(struct awesome_nvme_dev *dev)
     kfree(dev);
 }
 
+static irqreturn_t awesome_nvme_irq_handler(int irq, void *dev_id)
+{
+    return IRQ_HANDLED;
+}
+
 static int awesome_nvme_probe(struct pci_dev *pdev,
         const struct pci_device_id *id)
 {
@@ -53,15 +58,35 @@ static int awesome_nvme_probe(struct pci_dev *pdev,
         goto err_destroy_device;
     }
 
-    ret = awesome_nvme_create_cdev(dev);
+    ret = pci_enable_device(dev->pdev);
+    if (ret) {
+        dev_err(&dev->pdev->dev, "nvme pci enable device failed: %d.", ret);
+        goto err_bar_unmap;
+    }
+    pci_set_master(dev->pdev);
+
+    ret = devm_request_irq(&dev->pdev->dev, dev->pdev->irq,
+                          awesome_nvme_irq_handler,
+                          IRQF_SHARED, DRIVER_NAME, dev);
+    if (ret) {
+        dev_err(&pdev->dev, "request irq failed: %d.", ret);
+        goto err_pci_disable;
+    }
+
+    ret = awesome_nvme_create_cdev(&dev->cdev, &drv->cfg.cdev_class,
+        drv->cfg.cdev_fops);
     if (ret) {
         dev_err(&dev->pdev->dev, "nvme create cdev failed: %d.", ret);
-        goto err_bar_unmap;
+        goto err_pci_disable;
     }
 
     pci_set_drvdata(pdev, dev);
     list_add_tail(&dev->list, &drv->dev_list);
     return 0;
+
+err_pci_disable:
+    pci_clear_master(dev->pdev);
+    pci_disable_device(dev->pdev);
 
 err_bar_unmap:
     awesome_nvme_bar_unmap(dev);
@@ -73,8 +98,9 @@ err_destroy_device:
 
 static void awesome_nvme_remove(struct pci_dev *pdev)
 {
+    struct awesome_nvme_drv_knl *drv = awesome_nvme_get_driver();
     struct awesome_nvme_dev *dev = pci_get_drvdata(pdev);
-    awesome_nvme_destroy_cdev(dev);
+    awesome_nvme_destroy_cdev(&dev->cdev, &drv->cfg.cdev_class);
     awesome_nvme_bar_unmap(dev);
     awesome_pci_destroy_nvme_device(dev);
 }

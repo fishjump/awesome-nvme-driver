@@ -34,14 +34,14 @@ static struct awesome_init_step steps[] = {
         .desc = "init driver",
     },
     {
-        .init = awesome_nvme_cdev_init,
-        .exit = awesome_nvme_cdev_exit,
-        .desc = "init cdev",
-    },
-    {
         .init = awesome_fops_init,
         .exit = awesome_fops_exit,
         .desc = "init file operations",
+    },
+    {
+        .init = awesome_nvme_cdev_init,
+        .exit = awesome_nvme_cdev_exit,
+        .desc = "init cdev",
     },
     {
         .init = awesome_pci_register_driver,

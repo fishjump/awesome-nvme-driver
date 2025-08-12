@@ -7,34 +7,45 @@
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/idr.h>
+#include <linux/ioctl.h>
 
 #define DRIVER_NAME "awesome_nvme"
+
+struct awesome_nvme_cdev {
+    dev_t devt;
+    struct cdev cdev;
+    struct device *dev;
+};
 
 struct awesome_nvme_dev {
     struct list_head list;
 
     /* pcie device */
     struct pci_dev *pdev;
+    struct awesome_nvme_cdev cdev;
 
     /* bar map */
-    void __iomem *bar;
-    resource_size_t bar_size;
-    struct cdev bar_cdev;
-    struct device *device;
-    dev_t devt;
+    int bar_fd;
 
     /* dma */
     void *dma_cpu_addr;
     dma_addr_t dma_phys_addr;
     size_t dma_size;
+    int dma_fd;
+};
+
+struct awesome_nvme_class {
+    const char *name;
+    const char *cdev_fmt;
+    struct class *class;
+    struct ida ida;
+    dev_t devt_base;
 };
 
 struct awesome_nvme_config {
-    struct file_operations *fops;
     struct pci_driver *pci_driver;
-    struct class *nvme_class;
-    struct ida dev_ida;
-    dev_t devt_base;
+    struct file_operations *cdev_fops;
+    struct awesome_nvme_class cdev_class;
 };
 
 struct awesome_nvme_drv_knl {
